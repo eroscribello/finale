@@ -1,0 +1,19 @@
+<package format="3">
+  <name>robot_sim</name>
+  <version>0.0.0</version>
+  <description>Simulazione robot con ArUco</description>
+  <maintainer email="e.cribello@studenti.unina.it">user</maintainer>
+  <license>TODO: License declaration</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>gazebo_ros</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+    <gazebo_ros gazebo_model_path="${prefix}/share/${PROJECT_NAME}/models"/>
+    <gz_sim_resource_path>${prefix}/share/${PROJECT_NAME}/models</gz_sim_resource_path>
+    <ign_gazebo_resource_path>${prefix}/share/${PROJECT_NAME}/models</ign_gazebo_resource_path>
+  </export>
+</package>

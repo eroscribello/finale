@@ -1,0 +1,198 @@
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler, SetEnvironmentVariable
+from launch.event_handlers import OnProcessExit
+from launch_ros.actions import Node
+from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
+from launch_ros.substitutions import FindPackageShare
+from ament_index_python.packages import get_package_share_directory
+import os
+from launch_ros.parameter_descriptions import ParameterValue
+
+def generate_launch_description():
+
+    # --- 1. CONFIGURAZIONE PERCORSI MODELLI (ARUCO) ---
+    # Recuperiamo il percorso della cartella share del pacchetto robot_sim
+    pkg_robot_sim = get_package_share_directory('robot_sim')
+    
+    # Definiamo il percorso assoluto della cartella 'models' nell'installazione
+    # Questo serve a Gazebo per risolvere model://aruco_tags
+    models_path = os.path.join(pkg_robot_sim, 'models')
+
+    # Impostiamo le variabili per Gazebo (GZ) e Ignition (IGN)
+    # Aggiungiamo il nostro percorso a quelli esistenti usando il separatore di sistema ':'
+    set_gz_resource_path = SetEnvironmentVariable(
+        name='GZ_SIM_RESOURCE_PATH',
+        value=models_path
+    )
+    set_ign_resource_path = SetEnvironmentVariable(
+        name='IGN_GAZEBO_RESOURCE_PATH',
+        value=models_path  # Prova a passare solo il path diretto come stringa
+    )
+
+    # --- 2. ENVIRONMENT: ros2_control plugin ---
+    set_plugin_path = SetEnvironmentVariable(
+        name='IGN_GAZEBO_SYSTEM_PLUGIN_PATH',
+        value=[
+            '/opt/ros/humble/lib:',
+            os.environ.get('IGN_GAZEBO_SYSTEM_PLUGIN_PATH', '')
+        ]
+    )
+
+    # --- 3. IIWA ARGUMENTS & DESCRIPTION ---
+    iiwa_description_arg = DeclareLaunchArgument(
+        'iiwa_description_file',
+        default_value='iiwa.config.xacro'
+    )
+
+    config_file = LaunchConfiguration('iiwa_description_file')
+
+    xacro_path = PathJoinSubstitution([
+        FindPackageShare('iiwa_description'),
+        'config',
+        config_file
+    ])
+
+    robot_description = {
+        'robot_description': ParameterValue(Command([
+            'xacro ', xacro_path,
+            ' prefix:=iiwa_',
+            ' parent:=world',
+            ' use_sim:=true',
+            ' namespace:=iiwa',
+            ' command_interface:=velocity'
+        ]), value_type=str)
+    }
+
+    # --- 4. FRA2MO ROBOT DESCRIPTION ---
+    fra2mo_xacro_path = PathJoinSubstitution([
+        FindPackageShare('ros2_fra2mo'),
+        'urdf',
+        'fra2mo.urdf.xacro'
+    ])
+
+    robot_description2 = {
+        'robot_description': ParameterValue(Command([
+            'xacro ', fra2mo_xacro_path,
+        ]), value_type=str)
+    }
+
+    # --- 5. GAZEBO WORLD ---
+    world_path = os.path.join(pkg_robot_sim, 'worlds', 'my_custom_world.sdf')
+
+    gazebo = ExecuteProcess(
+        cmd=['ign', 'gazebo', world_path, '-v', '4', '-r'],
+        output='screen'
+    )
+
+    # --- 6. NODES: State Publishers ---
+    robot_state_publisher = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        namespace='iiwa',
+        parameters=[robot_description],
+        remappings=[('/robot_description', 'robot_description')],
+        output='screen'
+    )
+    
+    robot_state_publisher2 = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        parameters=[robot_description2],
+        namespace='fra2mo',
+        output='screen'
+    )
+
+    # --- 7. BRIDGE (Clock, Vel, Lidar, Camera) ---
+    bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        arguments=[
+            '/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock',
+            '/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist',
+            '/lidar@sensor_msgs/msg/LaserScan[ignition.msgs.LaserScan',
+            '/model/fra2mo/odometry@nav_msgs/msg/Odometry@ignition.msgs.Odometry',
+            '/model/fra2mo/tf@tf2_msgs/msg/TFMessage@ignition.msgs.Pose_V',
+            '/tf_static@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V',
+            '/camera/image_raw@sensor_msgs/msg/Image[ignition.msgs.Image',
+            '/camera/camera_info@sensor_msgs/msg/CameraInfo[ignition.msgs.CameraInfo'
+        ],
+        output='screen'
+    )
+    
+    odom_tf = Node(
+        package='ros2_fra2mo',
+        executable='dynamic_tf_publisher',
+        name='odom_tf',
+        parameters=[{"use_sim_time": True}],
+        output='screen'
+    )
+
+    # --- 8. SPAWN ROBOTS ---
+    spawn_iiwa = Node(
+        package='ros_gz_sim',
+        executable='create',
+        arguments=[
+            '-topic', '/iiwa/robot_description',
+            '-name', 'iiwa',
+            '-x', '0', '-y', '0', '-z', '0'
+        ],
+        output='screen'
+    )
+    
+    spawn_fra2mo = Node(
+        package='ros_gz_sim',
+        executable='create',
+        arguments=[
+            '-topic', '/fra2mo/robot_description',
+            '-name', 'fra2mo',
+            '-x', '1.5', '-y', '0', '-z', '0'
+        ],
+        output='screen'
+    )
+
+    # --- 9. CONTROLLERS ---
+    joint_state_broadcaster = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['joint_state_broadcaster'],
+        namespace='iiwa',
+        output='screen'
+    )
+
+    velocity_controller = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['velocity_controller', '-c', '/iiwa/controller_manager'],
+        namespace='iiwa',
+        output='screen'
+    )
+
+    controllers_after_spawn = RegisterEventHandler(
+        OnProcessExit(
+            target_action=spawn_iiwa,
+            on_exit=[joint_state_broadcaster, velocity_controller]
+        )
+    )
+
+    # --- 10. RETURN DESCRIPTION ---
+    return LaunchDescription([
+        # Variabili d'ambiente (devono essere le prime)
+        set_gz_resource_path,
+        set_ign_resource_path,
+        set_plugin_path,
+        
+        # Argomenti e Processi
+        iiwa_description_arg,
+        gazebo,
+        
+        # Nodi
+        robot_state_publisher,
+        robot_state_publisher2,
+        bridge,
+        odom_tf,
+        
+        # Spawning e Event Handlers
+        spawn_iiwa,
+        spawn_fra2mo,
+        controllers_after_spawn
+    ])

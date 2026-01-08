@@ -1,0 +1,10 @@
+/iiwa/ros2_kdl_node:
+  ros__parameters:
+    Kp: 1.0
+    acc_duration: 1.5
+    traj_duration: 10.0
+    total_time: 10.0
+    trajectory_len: 100
+    end_position: [0.5, 0.5, 0.5]
+    traj_type: "linear"
+    s_type: "trapezoidal"
