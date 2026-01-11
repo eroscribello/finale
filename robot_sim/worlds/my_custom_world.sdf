@@ -165,8 +165,8 @@
         </collision>
         <visual name="visual">
          <material> 
-          <ambient>0.1 0.1 0.1 1</ambient>
-          <diffuse>0.2 0.2 0.2 1</diffuse>
+          <ambient>0.6 0.6 0.6 1</ambient>
+          <diffuse>0.6 0.6 0.6 1</diffuse>
           <specular>0 0 0 0</specular>
           <emissive>0 0 0 1</emissive>
         </material> 

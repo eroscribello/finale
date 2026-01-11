@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <sdf version='1.9'>
   <model name='aruco_tags'>
     <static>false</static>
@@ -7,12 +7,12 @@
       <inertial>
         <mass>1.0</mass>
         <inertia>
-          <ixx>0.04166</ixx>
+          <ixx>0.00375</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
-          <iyy>0.04166</iyy>
+          <iyy>0.00375</iyy>
           <iyz>0</iyz>
-          <izz>0.04166</izz>
+          <izz>0.00375</izz>
         </inertia>
       </inertial>
 
@@ -24,20 +24,33 @@
         </geometry>
       </collision>
 
-      <visual name='visual'>
+      <visual name='cube_visual'>
         <geometry>
           <box>
             <size>0.15 0.15 0.15</size>
           </box>
         </geometry>
         <material>
-        <ambient>1 1 1 1</ambient>
+          <ambient>1 1 1 1</ambient>
           <diffuse>1 1 1 1</diffuse>
-          <specular>0.0 0.0 0.0 1</specular>
+          <specular>0.5 0.5 0.5 1</specular>
+        </material>
+      </visual>
+
+      <visual name='tag_visual'>
+        <pose>0 0 0.076 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.149 0.149 0.001</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 1 1 1</ambient>
+          <diffuse>1 1 1 1</diffuse>
+          <specular>0 0 0 1</specular>
           <pbr>
             <metal>
               <albedo_map>model://aruco_tags/arucotag.png</albedo_map>
-              <roughness>0.9</roughness>
             </metal>
           </pbr>
         </material>

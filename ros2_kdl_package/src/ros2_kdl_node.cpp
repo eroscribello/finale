@@ -67,7 +67,7 @@ public:
         // --- TOPIC E ACTION SERVER ---
         this->action_server_ = rclcpp_action::create_server<ExecuteTrajectory>(
             this,
-            "ExecuteTrajectory",
+            "/iiwa/ExecuteTrajectory",
             std::bind(&Iiwa_pub_sub::handle_goal, this, _1, _2),
             std::bind(&Iiwa_pub_sub::handle_cancel, this, _1),
             std::bind(&Iiwa_pub_sub::handle_accepted, this, _1));
@@ -88,7 +88,6 @@ public:
     }
 
 private:
-rclcpp::Time last_marker_time_;
     // --- KDL SETUP ---
     void setup_kdl() {
         auto parameters_client = std::make_shared<rclcpp::SyncParametersClient>(this, "robot_state_publisher");
@@ -225,61 +224,6 @@ Eigen::Vector3d ori_error = computeOrientationError(toEigen(init_frame.M), toEig
     
     */
     
-    
-    void execute(const std::shared_ptr<GoalHandleExecuteTrajectory> goal_handle)
-{
-    RCLCPP_INFO(this->get_logger(), "Starting trajectory execution...");
-    auto feedback = std::make_shared<ExecuteTrajectory::Feedback>();
-    auto result = std::make_shared<ExecuteTrajectory::Result>();
-
-    rclcpp::Rate rate(50); // 50 Hz
-    double total_time = total_time_;
-    double t = 0.0;
-
-    while (rclcpp::ok() && ctrl_ == "vision") {
-        if (goal_handle->is_canceling()) {
-            goal_handle->canceled(result);
-            return;
-        }
-
-        // --- GESTIONE VISIONE ---
-        auto now = this->get_clock()->now();
-        // Se l'ultimo tag è più vecchio di 0.5 secondi, il tag è "perso"
-        bool target_visible = (now - last_marker_time_).seconds() < 0.5;
-
-        Eigen::Vector3d sd(0, 0, 1); // Direzione desiderata (asse Z camera)
-        
-        if (target_visible) {
-            joint_velocities_cmd_ = controller_.vision_ctrl(Kp_, cPo_, sd);
-            
-            // Calcolo errore per feedback
-            Eigen::Vector3d s = cPo_ / cPo_.norm();
-            Eigen::Vector3d dir_error = s - sd;
-            feedback->position_error = {dir_error(0), dir_error(1), dir_error(2)};
-        } else {
-            // Se non lo vede, ferma i giunti (velocità zero)
-            joint_velocities_cmd_.data.setZero();
-            feedback->position_error = {999.0, 999.0, 999.0}; // Segnale convenzionale di errore
-            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "TAG LOST - ROBOT STOPPED");
-        }
-
-        goal_handle->publish_feedback(feedback);
-
-        // --- PUBBLICAZIONE COMANDI ---
-        robot_->update(toStdVector(joint_positions_.data), toStdVector(joint_velocities_.data));
-        std_msgs::msg::Float64MultiArray cmd_msg;
-        cmd_msg.data.assign(joint_velocities_cmd_.data.data(),
-                            joint_velocities_cmd_.data.data() + joint_velocities_cmd_.rows());
-        cmdPublisher_->publish(cmd_msg);
-
-        rate.sleep(); // FONDAMENTALE per permettere il processamento delle callback ArUco
-    }
-    result->success = true;
-    goal_handle->succeed(result);
-}
-    
-    /*
-    
     void execute(const std::shared_ptr<GoalHandleExecuteTrajectory> goal_handle)
 {
     RCLCPP_INFO(this->get_logger(), "Starting trajectory execution...");
@@ -389,7 +333,7 @@ Eigen::Vector3d ori_error = computeOrientationError(toEigen(init_frame.M), toEig
     stop_robot();
     RCLCPP_INFO(this->get_logger(), "Execution completed.");
 }
-    */
+    
 
     void stop_robot() {
         FloatArray stop_msg;
@@ -404,19 +348,9 @@ Eigen::Vector3d ori_error = computeOrientationError(toEigen(init_frame.M), toEig
         }
     }
 
-	/*
     void aruco_pose_subscriber(const geometry_msgs::msg::PoseStamped& msg) {
         cPo_ << msg.pose.position.x, msg.pose.position.y, msg.pose.position.z;
     }
-    */
-    
-    void aruco_pose_subscriber(const geometry_msgs::msg::PoseStamped& pose_stamped_msg)
-{
-    cPo_(0) = pose_stamped_msg.pose.position.x;
-    cPo_(1) = pose_stamped_msg.pose.position.y;
-    cPo_(2) = pose_stamped_msg.pose.position.z;
-    last_marker_time_ = this->get_clock()->now(); // Marca il tempo dell'ultimo avvistamento
-}
 
     // --- MEMBRI ---
     std::shared_ptr<KDLRobot> robot_;
