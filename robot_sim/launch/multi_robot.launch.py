@@ -11,22 +11,16 @@ from launch_ros.parameter_descriptions import ParameterValue
 def generate_launch_description():
 
     # --- 1. CONFIGURAZIONE PERCORSI MODELLI (ARUCO) ---
-    # Recuperiamo il percorso della cartella share del pacchetto robot_sim
     pkg_robot_sim = get_package_share_directory('robot_sim')
-    
-    # Definiamo il percorso assoluto della cartella 'models' nell'installazione
-    # Questo serve a Gazebo per risolvere model://aruco_tags
     models_path = os.path.join(pkg_robot_sim, 'models')
 
-    # Impostiamo le variabili per Gazebo (GZ) e Ignition (IGN)
-    # Aggiungiamo il nostro percorso a quelli esistenti usando il separatore di sistema ':'
     set_gz_resource_path = SetEnvironmentVariable(
         name='GZ_SIM_RESOURCE_PATH',
         value=models_path
     )
     set_ign_resource_path = SetEnvironmentVariable(
         name='IGN_GAZEBO_RESOURCE_PATH',
-        value=models_path  # Prova a passare solo il path diretto come stringa
+        value=models_path 
     )
 
     # --- 2. ENVIRONMENT: ros2_control plugin ---
@@ -84,12 +78,12 @@ def generate_launch_description():
         output='screen'
     )
 
-    # --- 6. NODES: State Publishers ---
+    # --- 6. NODES: State Publishers (Con use_sim_time) ---
     robot_state_publisher = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
         namespace='iiwa',
-        parameters=[robot_description],
+        parameters=[robot_description, {'use_sim_time': True}],
         remappings=[('/robot_description', 'robot_description')],
         output='screen'
     )
@@ -97,7 +91,7 @@ def generate_launch_description():
     robot_state_publisher2 = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
-        parameters=[robot_description2],
+        parameters=[robot_description2, {'use_sim_time': True}],
         namespace='fra2mo',
         output='screen'
     )
@@ -116,6 +110,7 @@ def generate_launch_description():
             '/camera/image_raw@sensor_msgs/msg/Image[ignition.msgs.Image',
             '/camera/camera_info@sensor_msgs/msg/CameraInfo[ignition.msgs.CameraInfo'
         ],
+        parameters=[{'use_sim_time': True}],
         output='screen'
     )
     
@@ -136,6 +131,7 @@ def generate_launch_description():
             '-name', 'iiwa',
             '-x', '0', '-y', '0', '-z', '0'
         ],
+        parameters=[{'use_sim_time': True}],
         output='screen'
     )
     
@@ -147,6 +143,7 @@ def generate_launch_description():
             '-name', 'fra2mo',
             '-x', '1.5', '-y', '0', '-z', '0'
         ],
+        parameters=[{'use_sim_time': True}],
         output='screen'
     )
 
@@ -156,6 +153,7 @@ def generate_launch_description():
         executable='spawner',
         arguments=['joint_state_broadcaster'],
         namespace='iiwa',
+        parameters=[{'use_sim_time': True}],
         output='screen'
     )
 
@@ -164,6 +162,7 @@ def generate_launch_description():
         executable='spawner',
         arguments=['velocity_controller', '-c', '/iiwa/controller_manager'],
         namespace='iiwa',
+        parameters=[{'use_sim_time': True}],
         output='screen'
     )
 
@@ -176,22 +175,15 @@ def generate_launch_description():
 
     # --- 10. RETURN DESCRIPTION ---
     return LaunchDescription([
-        # Variabili d'ambiente (devono essere le prime)
         set_gz_resource_path,
         set_ign_resource_path,
         set_plugin_path,
-        
-        # Argomenti e Processi
         iiwa_description_arg,
         gazebo,
-        
-        # Nodi
         robot_state_publisher,
         robot_state_publisher2,
         bridge,
         odom_tf,
-        
-        # Spawning e Event Handlers
         spawn_iiwa,
         spawn_fra2mo,
         controllers_after_spawn
