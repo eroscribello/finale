@@ -230,8 +230,6 @@ Eigen::Vector3d ori_error = computeOrientationError(toEigen(init_frame.M), toEig
 
     auto feedback = std::make_shared<ExecuteTrajectory::Feedback>();
     auto result = std::make_shared<ExecuteTrajectory::Result>();
-
-    rclcpp::Rate rate(50);  // 50 Hz
     double dt = 1.0 / 50.0;
     double t = 0.0;
 
@@ -300,6 +298,7 @@ Eigen::Vector3d ori_error = computeOrientationError(toEigen(init_frame.M), toEig
         }
 
         t += dt;
+        rclcpp::Rate rate(1.0 / dt);
         rate.sleep();
     }
 
@@ -313,7 +312,7 @@ Eigen::Vector3d ori_error = computeOrientationError(toEigen(init_frame.M), toEig
     Eigen::Vector3d dir_error = s - sd;
 
     // 2. Calcolo comando
-    joint_velocities_cmd_ = controller_.vision_ctrl(Kp_, cPo_, sd);
+    joint_velocities_cmd_ = controller_.vision_ctrl(1, cPo_, sd);
 
     // 3. Feedback e Pubblicazione
     feedback->position_error = {dir_error(0), dir_error(1), dir_error(2)};
@@ -326,6 +325,7 @@ Eigen::Vector3d ori_error = computeOrientationError(toEigen(init_frame.M), toEig
     cmdPublisher_->publish(cmd_msg);
 
     // FONDAMENTALE: Lascia respirare il sistema per aggiornare cPo_
+    rclcpp::Rate rate(1.0 / dt);
     rate.sleep(); 
 }
     result->success = true;

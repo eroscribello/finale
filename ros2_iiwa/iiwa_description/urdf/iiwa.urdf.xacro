@@ -266,6 +266,16 @@
     <child link="${prefix}camera_link"/>
     <origin xyz="0.0 0 0.0" rpy="3.14 -1.57 0"/> 
   </joint>
+  
+  
+  
+  <link name="${prefix}camera_link_optical"/>
+
+<joint name="${prefix}camera_optical_joint" type="fixed">
+  <parent link="${prefix}camera_link"/>
+  <child link="${prefix}camera_link_optical"/>
+  <origin xyz="0 0 0" rpy="-1.5708 0 -1.5708"/>
+</joint>
 
 
   
