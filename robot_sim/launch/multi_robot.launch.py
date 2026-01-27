@@ -1,6 +1,7 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, RegisterEventHandler, SetEnvironmentVariable
-from launch.event_handlers import OnProcessExit
+from launch.actions import (DeclareLaunchArgument, ExecuteProcess, 
+                            RegisterEventHandler, SetEnvironmentVariable, TimerAction)
+from launch.event_handlers import OnProcessExit, OnProcessStart
 from launch_ros.actions import Node
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
@@ -78,7 +79,7 @@ def generate_launch_description():
         output='screen'
     )
 
-    # --- 6. NODES: State Publishers (Con use_sim_time) ---
+    # --- 6. NODES: State Publishers ---
     robot_state_publisher = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
@@ -96,7 +97,7 @@ def generate_launch_description():
         output='screen'
     )
 
-    # --- 7. BRIDGE (Clock, Vel, Lidar, Camera) ---
+    # --- 7. BRIDGE ---
     bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
@@ -108,7 +109,9 @@ def generate_launch_description():
             '/model/fra2mo/tf@tf2_msgs/msg/TFMessage@ignition.msgs.Pose_V',
             '/tf_static@tf2_msgs/msg/TFMessage[ignition.msgs.Pose_V',
             '/camera/image_raw@sensor_msgs/msg/Image[ignition.msgs.Image',
-            '/camera/camera_info@sensor_msgs/msg/CameraInfo[ignition.msgs.CameraInfo'
+            '/camera/camera_info@sensor_msgs/msg/CameraInfo[ignition.msgs.CameraInfo',
+            '/model/aruco_tag/detachable_joint/attach@std_msgs/msg/Empty]ignition.msgs.Empty',
+            '/model/aruco_tag/detachable_joint/detach@std_msgs/msg/Empty]ignition.msgs.Empty',
         ],
         parameters=[{'use_sim_time': True}],
         output='screen'
@@ -173,7 +176,29 @@ def generate_launch_description():
         )
     )
 
-    # --- 10. RETURN DESCRIPTION ---
+    # --- 10. DETACH LOGIC ---
+
+    # Definiamo il comando di pubblicazione
+    detach_package = ExecuteProcess(
+        cmd=['ros2', 'topic', 'pub', '--once', '/model/aruco_tag/detachable_joint/detach', 'std_msgs/msg/Empty', '{}', '-w', '0'],
+        output='screen'
+    )
+
+    # Invece di OnProcessStart del bridge, aspettiamo che lo spawner dei controller finisca.
+    # Questo garantisce che il robot sia presente, i controller siano attivi e il mondo sia "stabile".
+    detach_handler = RegisterEventHandler(
+        OnProcessExit(
+            target_action=velocity_controller, # Quando il controller è pronto, il mondo lo è sicuramente
+            on_exit=[
+                TimerAction(
+                    period=2.0,
+                    actions=[detach_package]
+                )
+            ]
+        )
+    )
+
+    # --- 11. RETURN DESCRIPTION ---
     return LaunchDescription([
         set_gz_resource_path,
         set_ign_resource_path,
@@ -186,5 +211,6 @@ def generate_launch_description():
         odom_tf,
         spawn_iiwa,
         spawn_fra2mo,
-        controllers_after_spawn
+        controllers_after_spawn,
+        detach_handler
     ])

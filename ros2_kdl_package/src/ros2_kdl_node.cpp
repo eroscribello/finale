@@ -75,13 +75,13 @@ public:
             std::bind(&Iiwa_pub_sub::handle_accepted, this, _1));
 
         jointSubscriber_ = this->create_subscription<sensor_msgs::msg::JointState>(
-            "joint_states", 10, std::bind(&Iiwa_pub_sub::joint_state_subscriber, this, _1), sub_options);
+            "/iiwa/joint_states", 10, std::bind(&Iiwa_pub_sub::joint_state_subscriber, this, _1), sub_options);
 
         MarkerPoseSubscriber_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
             "/aruco_single/pose", 10, std::bind(&Iiwa_pub_sub::aruco_pose_subscriber, this, _1), sub_options);
 
-        std::string cmd_topic = (cmd_interface_ == "position") ? "iiwa_arm_controller/commands" : 
-                                (cmd_interface_ == "velocity") ? "velocity_controller/commands" : 
+        std::string cmd_topic = (cmd_interface_ == "position") ? "/iiwa/iiwa_arm_controller/commands" : 
+                                (cmd_interface_ == "velocity") ? "/iiwa/velocity_controller/commands" : 
                                 "effort_controller/commands";
         
         cmdPublisher_ = this->create_publisher<FloatArray>(cmd_topic, 10);
@@ -133,16 +133,61 @@ private:
     }
 
     void joint_state_subscriber(const sensor_msgs::msg::JointState& msg) {
-        for (size_t i = 0; i < msg.position.size(); ++i) {
-            joint_positions_.data[i] = msg.position[i];
-            joint_velocities_.data[i] = msg.velocity[i];
+    // 1. Definiamo l'ordine esatto che KDL si aspetta (quello dell'URDF)
+    std::vector<std::string> ordered_names = {
+        "iiwa_joint_a1", "iiwa_joint_a2", "iiwa_joint_a3", "iiwa_joint_a4", "iiwa_joint_a5", "iiwa_joint_a6", "iiwa_joint_a7"
+    };
+
+    // 2. Mappiamo ogni valore del messaggio al posto giusto nel vettore KDL
+    for (size_t i = 0; i < ordered_names.size(); i++) {
+        for (size_t j = 0; j < msg.name.size(); j++) {
+            if (msg.name[j] == ordered_names[i]) {
+                joint_positions_.data[i] = msg.position[j];
+                joint_velocities_.data[i] = msg.velocity[j];
+                break;
+            }
         }
     }
 
+    // 3. Ora aggiorna KDL e stampa
+    robot_->update(toStdVector(joint_positions_.data), toStdVector(joint_velocities_.data));
+    KDL::Frame current_f = robot_->getEEFrame();
+    
+    RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+        "STIMA KDL CORRETTA -> X: %.3f, Y: %.3f, Z: %.3f", 
+        current_f.p.x(), current_f.p.y(), current_f.p.z());
+}
+
+
     void aruco_pose_subscriber(const geometry_msgs::msg::PoseStamped& msg) {
-        cPo_ << msg.pose.position.x, msg.pose.position.y, msg.pose.position.z;
-        last_detection_time_ = this->now();
-    }
+    // 1. Coordinate dell'oggetto nel frame ottico della camera (ArUco)
+    cPo_ << msg.pose.position.x, msg.pose.position.y, msg.pose.position.z;
+    last_detection_time_ = this->now();
+
+    // 2. Otteniamo la posa del tool rispetto alla base (da KDL)
+    KDL::Frame base_T_tool = robot_->getEEFrame();
+
+    // 3. Definiamo le trasformazioni fisse dall'URDF
+    // Joint camera_joint: tool0 -> camera_link (rpy: 3.14, -1.57, 0)
+    KDL::Frame tool_T_cam = KDL::Frame(KDL::Rotation::RPY(3.14, -1.57, 0), 
+                                       KDL::Vector(0, 0, 0));
+
+    // Joint camera_optical_joint: camera_link -> camera_link_optical (rpy: -1.5708, 0, -1.5708)
+    KDL::Frame cam_T_opt = KDL::Frame(KDL::Rotation::RPY(-1.5708, 0, -1.5708), 
+                                      KDL::Vector(0, 0, 0));
+
+    // 4. Trasformazione Finale: Base -> Tool -> Camera -> Optical -> Marker
+    KDL::Vector cam_P_obj(cPo_.x(), cPo_.y(), cPo_.z());
+    KDL::Vector base_P_obj = base_T_tool * tool_T_cam * cam_T_opt * cam_P_obj;
+
+    // 5. Visualizzazione
+    RCLCPP_INFO(this->get_logger(), "---------------------------------------");
+    RCLCPP_INFO(this->get_logger(), "cPo (Optical): [ %f, %f, %f ]", cPo_.x(), cPo_.y(), cPo_.z());
+    RCLCPP_INFO(this->get_logger(), "bPo (Base   ): [ %f, %f, %f ]", base_P_obj.x(), base_P_obj.y(), base_P_obj.z());
+    
+    // Salva bPo_ per usarlo nel loop di controllo vision_ctrl
+    // bPo_ << base_P_obj.x(), base_P_obj.y(), base_P_obj.z();
+}
 
     rclcpp_action::GoalResponse handle_goal(const rclcpp_action::GoalUUID&, std::shared_ptr<const ExecuteTrajectory::Goal>) {
         return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
@@ -176,7 +221,67 @@ private:
         planner_ = (traj_type_ == "linear") ? KDLPlanner(traj_duration_, acc_duration_, start_p, end_p) : KDLPlanner(traj_duration_, start_p, 0.15, acc_duration_);
 
         // --- LOOP CONTROLLO ---
-        while (rclcpp::ok()) {
+        
+        
+        
+        
+        
+        
+        while (rclcpp::ok() && t < total_time_ && ctrl_ != "vision") {
+            // if the client asks to cancel
+            if (goal_handle->is_canceling()) {
+                RCLCPP_INFO(this->get_logger(), "Goal canceled by client");
+                goal_handle->canceled(result);
+                return;
+            }
+
+            if (traj_type_ == "linear") {
+                if (s_type_ == "trapezoidal")
+                    p_ = planner_.linear_traj_trapezoidal(t);
+                else
+                    p_ = planner_.linear_traj_cubic(t);
+            }
+
+            KDL::Frame cartpos = robot_->getEEFrame();
+
+            Eigen::Vector3d error = computeLinearError(p_.pos, Eigen::Vector3d(cartpos.p.data));
+
+            // publish the error as feedback
+            feedback->position_error = {error(0), error(1), error(2)};
+            goal_handle->publish_feedback(feedback);
+
+            if (ctrl_ == "velocity_ctrl") {
+                Vector6d cartvel;
+                cartvel << p_.vel + Kp_ * error, Eigen::Vector3d::Zero();
+                joint_velocities_cmd_.data = pseudoinverse(robot_->getEEJacobian().data) * cartvel;
+            } else if (ctrl_ == "velocity_ctrl_null") {
+                Eigen::Matrix<double, 6, 1> error_position;
+                error_position << error, Eigen::Vector3d::Zero();
+                joint_velocities_cmd_ = controller_.velocity_ctrl_null(error_position, Kp_);
+            }
+
+            // Publishing the command
+            robot_->update(toStdVector(joint_positions_.data), toStdVector(joint_velocities_.data));
+            std_msgs::msg::Float64MultiArray cmd_msg;
+            cmd_msg.data.assign(joint_velocities_cmd_.data.data(),
+                                joint_velocities_cmd_.data.data() + joint_velocities_cmd_.rows());
+            cmdPublisher_->publish(cmd_msg);
+
+            t += dt;
+            rate.sleep();
+        }
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        while (rclcpp::ok() &&  ctrl_=="vision") {
             if (goal_handle->is_canceling()) {
                 stop_robot();
                 goal_handle->canceled(result);

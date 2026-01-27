@@ -85,32 +85,31 @@ KDL::JntArray KDLController::velocity_ctrl_null(Eigen::Matrix<double,6,1> error_
 
 
 
-
 KDL::JntArray KDLController::vision_ctrl(int Kp, Eigen::Vector3d cPo, Eigen::Vector3d sd)
 {
     unsigned int nj = robot_->getNrJnts();
     KDL::JntArray qd(nj);
     qd.data.setZero();
 
-    // 1. Calcolo del vettore s attuale (normalizzato)
-    double norm = cPo.norm();
-    if (norm < 0.01) return qd; // Sicurezza: se il tag è troppo vicino o nullo, ferma
-    Eigen::Vector3d s = cPo / norm;
+    // 1. Calcolo distanza e vettore direzione
+    double distance = cPo.norm();
+    if (distance < 0.01) return qd; // Sicurezza per evitare divisioni per zero
+    Eigen::Vector3d s = cPo / distance;
 
-    // 2. Errore di puntamento: differenza tra direzione attuale e desiderata
-    // Usiamo (s - sd) per la legge di controllo
+    // 2. Errore di puntamento (sd è tipicamente [0,0,1])
     Eigen::Vector3d error = s - sd;
 
-    // 3. Matrice di Rotazione EE rispetto alla Base
+    // 3. Matrici di Rotazione e Jacobiano
     Eigen::Matrix3d Rc = toEigen(robot_->getEEFrame().M);
-    
-    // Matrice di rotazione 6x6 per trasformare velocità da Camera a Base
     Eigen::Matrix<double,6,6> R = Eigen::Matrix<double,6,6>::Zero();
     R.block<3, 3>(0, 0) = Rc;
     R.block<3, 3>(3, 3) = Rc;
+    
+    Eigen::MatrixXd J = robot_->getEEJacobian().data;
+    Eigen::MatrixXd J_pinv = J.completeOrthogonalDecomposition().pseudoInverse();
 
-    // 4. Matrice di Interazione L (Interaction Matrix) definita nel frame camera
-    Eigen::Matrix<double,3,3> L1 = -1.0/norm * (Eigen::Matrix3d::Identity() - s*s.transpose());
+    // 4. Matrice di Interazione L (Camera Frame)
+    Eigen::Matrix<double,3,3> L1 = -1.0/distance * (Eigen::Matrix3d::Identity() - s*s.transpose());
     Eigen::Matrix3d S_skew;
     S_skew << 0, -s.z(), s.y(), 
               s.z(), 0, -s.x(), 
@@ -120,12 +119,30 @@ KDL::JntArray KDLController::vision_ctrl(int Kp, Eigen::Vector3d cPo, Eigen::Vec
     L.block<3, 3>(0, 0) = L1;
     L.block<3, 3>(0, 3) = S_skew;
 
-    // 5. Proiezione dello Jacobiano nel frame camera
-    // L è in camera frame, J è in base frame. Trasformiamo J: J_cam = R.transpose() * J_base
-    Eigen::MatrixXd J = robot_->getEEJacobian().data;
+    // 5. Proiezione Jacobiano: L_cam * J_cam
     Eigen::MatrixXd LJ = L * (R.transpose() * J);
+    Eigen::MatrixXd LJ_pinv = LJ.completeOrthogonalDecomposition().pseudoInverse();
 
-    // 6. Null Space per gestione limiti giunti (Manteniamo la tua logica)
+    // --- LOGICA DI AVANZAMENTO DEPOTENZIATA PER STABILITÀ ---
+    double v_z = 0.0;
+    double target_distance = 0.12; 
+    
+    if (distance > target_distance) {
+        // Usiamo un guadagno molto basso (0.15) per l'avvicinamento
+        v_z = 0.15 * (distance - target_distance); 
+        
+        // LIMITATORE: Non permettiamo al robot di andare più veloce di 4 cm/s
+        // Questo impedisce al tag di "schizzare" via dall'inquadratura
+        if (v_z > 0.04) v_z = 0.04; 
+    }
+    
+    Eigen::Matrix<double,6,1> v_cam;
+    v_cam << 0, 0, v_z, 0, 0, 0; 
+
+    // Trasformazione in Joint Space per l'avanzamento
+    Eigen::VectorXd qd_forward = J_pinv * (R * v_cam);
+
+    // 6. Null Space per limiti giunti (logica originale)
     Eigen::MatrixXd I = Eigen::MatrixXd::Identity(nj,nj);
     Eigen::MatrixXd JntLimits_ = robot_->getJntLimits();
     Eigen::VectorXd q = robot_->getJntValues();
@@ -137,180 +154,14 @@ KDL::JntArray KDLController::vision_ctrl(int Kp, Eigen::Vector3d cPo, Eigen::Vec
         double L_dist = range * range;
         double G = (2*q(i) - JntLimits_(i,1) - JntLimits_(i,0));
         double D = (JntLimits_(i,1) - q(i)) * (q(i) - JntLimits_(i,0));
-        q0_dot(i) = (1.0/lambda) * (L_dist * G) / (D * D + 0.001); // 0.001 evita div by zero
+        q0_dot(i) = (1.0/lambda) * (L_dist * G) / (D * D + 0.001);
     }
+    Eigen::MatrixXd N = I - J_pinv * J;
 
     // 7. Legge di controllo finale
-    // q_dot = -Kp * pinv(LJ) * error + (I - pinv(J)*J) * q0_dot
-    Eigen::MatrixXd LJ_pinv = LJ.completeOrthogonalDecomposition().pseudoInverse();
-    Eigen::MatrixXd J_pinv = J.completeOrthogonalDecomposition().pseudoInverse();
-    Eigen::MatrixXd N = I - J_pinv * J;
-
-    qd.data = -(double)Kp * LJ_pinv * error + N * q0_dot;
+    // Ridotto il peso del Kp sul puntamento per evitare rotazioni brusche
+    double Kp_soft = (double)Kp * 0.8; 
+    qd.data = -Kp_soft * LJ_pinv * error + qd_forward + N * q0_dot;
 
     return qd;
 }
-
-
-
-
-
-
-
-
-/*
-KDL::JntArray KDLController::vision_ctrl(int Kp, Eigen::Vector3d cPo, Eigen::Vector3d sd)
-{
-    unsigned int nj = robot_->getNrJnts();
-    KDL::JntArray qd(nj);
-    
-    // 1. Calcolo del vettore s attuale (normalizzato)
-    Eigen::Vector3d s = cPo / cPo.norm();
-
-    // 2. ERRORE: Questa è la chiave. L'errore è la differenza tra s e sd.
-    // In Visual Servoing, vogliamo minimizzare l'errore: e = s - sd
-    Eigen::Vector3d error = s - sd;
-
-    // 3. Matrice di Rotazione (EE -> Base)
-    Eigen::Matrix3d Rc = toEigen(robot_->getEEFrame().M);
-    Eigen::Matrix<double,6,6> R = Eigen::Matrix<double,6,6>::Zero();
-    R.block<3, 3>(0, 0) = Rc;
-    R.block<3, 3>(3, 3) = Rc;
-
-    // 4. Matrice di Interazione L (nel frame camera)
-    Eigen::Matrix<double,3,3> L1 = -1.0/cPo.norm() * (Eigen::Matrix3d::Identity() - s*s.transpose());
-    Eigen::Matrix3d S_skew;
-    S_skew << 0, -s.z(), s.y(), s.z(), 0, -s.x(), -s.y(), s.x(), 0;
-
-    Eigen::Matrix<double,3,6> L;
-    L.block<3, 3>(0, 0) = L1;
-    L.block<3, 3>(0, 3) = S_skew;
-
-    // 5. Proiezione dello Jacobiano nel frame camera: L * (R_transpose * J)
-    // Usiamo R.transpose() perché J è in base frame e vogliamo portarlo in camera/EE frame
-    Eigen::MatrixXd J = robot_->getEEJacobian().data;
-    Eigen::MatrixXd LJ = L * (R.transpose() * J);
-
-    // 6. Null Space (Gestione Limiti Giunti) - Questo pezzo che avevi è corretto
-    Eigen::MatrixXd I = Eigen::MatrixXd::Identity(nj,nj);
-    Eigen::MatrixXd JntLimits_ = robot_->getJntLimits();
-    Eigen::VectorXd q = robot_->getJntValues();
-    Eigen::VectorXd q0_dot(nj);
-    double lambda = 50.0;
-
-    for (unsigned int i = 0; i < nj; i++) {
-        double L_dist = (JntLimits_(i,1) - JntLimits_(i,0)) * (JntLimits_(i,1) - JntLimits_(i,0));
-        double G = (2*q(i) - JntLimits_(i,1) - JntLimits_(i,0));
-        double D = (JntLimits_(i,1) - q(i)) * (q(i) - JntLimits_(i,0));
-        q0_dot(i) = (1.0/lambda) * (L_dist * G) / (D * D);
-    }
-
-    // 7. Legge di Controllo Finale
-    // q_dot = -Kp * pseudoinverse(L*J) * error + (I - J_inv*J)*q0_dot
-    Eigen::MatrixXd LJ_pinv = LJ.completeOrthogonalDecomposition().pseudoInverse();
-    Eigen::MatrixXd J_pinv = J.completeOrthogonalDecomposition().pseudoInverse();
-    Eigen::MatrixXd N = I - J_pinv * J;
-
-    // NOTA: Il meno davanti a Kp è fondamentale perché vogliamo andare VERSO l'errore zero
-    qd.data = -(double)Kp * LJ_pinv * error + N * q0_dot;
-
-    return qd;
-}
-
-
-*/
-
-
-/*
-
-KDL::JntArray KDLController::vision_ctrl(int Kp, Eigen::Vector3d cPo,Eigen::Vector3d sd )
-{
-    unsigned int nj = robot_->getNrJnts();
-
-    Eigen::Matrix<double,3,3> Rc;
-    Rc = toEigen(robot_->getEEFrame().M);//assumiamo che la matrice di rotazione siano approssimabili
-    Eigen::MatrixXd K(nj,nj);
-    K = 3*Kp*K.Identity(nj,nj);
-
-    Eigen::Matrix<double,6,6> R =Eigen::Matrix<double,6,6>::Zero();
-
-    R.block<3, 3>(0, 0) = Rc;//.transpose();
-    R.block<3, 3>(3, 3) = Rc;//.transpose();
-
-    Eigen::Vector3d s;
-    for (int i=0; i<3; i++){
-        s(i) = cPo(i)/cPo.norm();
-    }
-    
-    
-    RCLCPP_INFO(rclcpp::get_logger("KDLController"),
-                "vector s: %f %f %f",
-                s(0),s(1),s(2));
-    
-    Eigen::Matrix<double,3,3> L1;
-    L1 = -1/cPo.norm()* (Eigen::Matrix3d::Identity() - s*s.transpose());
-
-    Eigen::Matrix3d S_skew = Eigen::Matrix3d::Zero();
-    S_skew <<     0, -s.z(),  s.y(),
-                 s.z(),      0, -s.x(),
-                -s.y(),  s.x(),      0;
-
-
-    Eigen::Matrix<double,3,3> L2;
-    L2 = S_skew;
-
-    Eigen::Matrix<double,3,6> L;
-
-    L.block<3, 3>(0, 0) = L1;
-    L.block<3, 3>(0, 3) = L2;
-    
-    L = L*R;
-
-    Eigen::MatrixXd J;
-    J = robot_->getEEJacobian().data;
-    Eigen::MatrixXd Jc; 
-    Jc  = J; //assumiamo che i due jacobiani siano uguali
-
-    
-    Eigen::MatrixXd I;
-    I = Eigen::MatrixXd::Identity(nj,nj);
-
-    Eigen::MatrixXd JntLimits_ (nj,2);
-    JntLimits_ = robot_->getJntLimits();
-
-    Eigen::VectorXd q_min(nj);
-    Eigen::VectorXd q_max(nj);
-    q_min = JntLimits_.col(0);
-    q_max = JntLimits_.col(1);
-
-    Eigen::VectorXd q(nj);
-    q  = robot_->getJntValues();
-
-    double lambda = 50;
-
-    Eigen::VectorXd q0_dot(nj);
-    for (unsigned int i = 0; i<nj; i++) {
-        
-        double L =(q_max(i) - q_min(i))*(q_max(i) - q_min(i));
-
-        double G = (2*q(i) - q_max(i) - q_min(i));
-
-        double D = (q_max(i)- q(i))*(q(i)- q_min(i));
-
-        q0_dot(i) = 1/lambda*L*G/(D*D);
-
-    }
-
-    Eigen::MatrixXd N (nj,nj);
-
-    N = I - pseudoinverse(J)*J;
-    
-    Eigen::MatrixXd J_pinv = pseudoinverse(L*J);
-    KDL::JntArray qd(nj);
-    qd.data =  K*J_pinv*sd + N * q0_dot;
-
-   
-    return qd;
-}
-*/
-

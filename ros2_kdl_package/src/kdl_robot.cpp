@@ -92,19 +92,25 @@ void KDLRobot::update(std::vector<double> _jnt_values, std::vector<double> _jnt_
 //                                 CHAIN                                      //
 ////////////////////////////////////////////////////////////////////////////////
 
+
+
+
 void KDLRobot::createChain(KDL::Tree &robot_tree)
 {
-    //if(!robot_tree.getChain(robot_tree.getRootSegment()->first, "lbr_iiwa_link_7",chain_))
-    if(!robot_tree.getChain(robot_tree.getRootSegment()->first, 
-        std::prev(std::prev(robot_tree.getSegments().end()))->first, chain_))
+    // Ora siamo sicuri che questi nomi esistono!
+    std::string base_link = "iiwa_iiwa_base"; 
+    std::string tip_link  = "iiwa_tool0"; 
+
+    if(!robot_tree.getChain(base_link, tip_link, chain_))
     {
-        std::cout << "Failed to create KDL robot" << std::endl;
-        return;
+        // Se world fallisce per qualche motivo strutturale, iiwa_link_0 è il piano B
+        robot_tree.getChain("iiwa_link_0", "iiwa_tool0", chain_);
     }
-    std::cout << "KDL robot model created" << std::endl;
-    std::cout << "with " << chain_.getNrOfJoints() << " joints" << std::endl;
-    std::cout << "and " << chain_.getNrOfSegments() << " segments" << std::endl;
+    
+    std::cout << ">>> CATENA KDL POPOLATA: " << chain_.getNrOfSegments() << " segmenti." << std::endl;
 }
+
+
 
 unsigned int KDLRobot::getNrJnts()
 {
