@@ -1,8 +1,8 @@
 initial_positions:
-  joint_a1: 0.5
-  joint_a2: -0.6
+  joint_a1: 0.0
+  joint_a2: -0.4
   joint_a3: 0.1
   joint_a4: 1.3962
   joint_a5: 0.1
-  joint_a6: -0.7
+  joint_a6: -1.2
   joint_a7: 0.0

@@ -1,8 +1,8 @@
 /iiwa/ros2_kdl_node:
   ros__parameters:
-    Kp: 1.0              
-    traj_duration: 10.0     
-    total_time: 10.0      
-    acc_duration: 5.0
+    Kp: 2.0              
+    traj_duration: 5.0     
+    total_time: 5.0      
+    acc_duration: 2.0
     end_position: [-0.627, -0.45, 0.23]
     trajectory_len: 200
