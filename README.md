@@ -23,13 +23,13 @@ Start the arm controller in vision mode. This node hosts the Action Server manag
 ros2 launch ros2_kdl_package launching.launch.py ctrl:=vision
 ```
 
-##3. Navigation Stack (Nav2)
+## 3. Navigation Stack (Nav2)
 Initialize the navigation servers (Planner, Controller, Recovery) for the Fra2Mo base:
 ```
 ros2 launch ros2_fra2mo fra2mo_navigation.launch.py
 ```
 
-##4. Task Supervisor (The Client)
+## 4. Task Supervisor (The Client)
 Execute the main node that triggers the entire mission sequence:
 ```
 ros2 run ros2_kdl_package ros2_kdl_node_client 
