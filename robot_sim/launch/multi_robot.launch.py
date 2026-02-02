@@ -79,7 +79,7 @@ def generate_launch_description():
         output='screen'
     )
 
-    # --- 6. NODES: State Publishers ---
+    # --- NODES: State Publishers ---
     robot_state_publisher = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
@@ -97,7 +97,7 @@ def generate_launch_description():
         output='screen'
     )
 
-    # --- 7. BRIDGE ---
+    # --- BRIDGE ---
     bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
@@ -125,7 +125,7 @@ def generate_launch_description():
         output='screen'
     )
 
-    # --- 8. SPAWN ROBOTS ---
+    # --- SPAWN ROBOTS ---
     spawn_iiwa = Node(
         package='ros_gz_sim',
         executable='create',
@@ -150,7 +150,7 @@ def generate_launch_description():
         output='screen'
     )
 
-    # --- 9. CONTROLLERS ---
+    # --- CONTROLLERS ---
     joint_state_broadcaster = Node(
         package='controller_manager',
         executable='spawner',
@@ -176,36 +176,9 @@ def generate_launch_description():
         )
     )
 
-    # --- 10. DETACH LOGIC ---
-
-    # Definiamo il comando di pubblicazione
-    '''
-    detach_package = ExecuteProcess(
-        cmd=['ros2', 'topic', 'pub', '--once', '/model/aruco_tag/detachable_joint/detach', 'std_msgs/msg/Empty', '{}', '-w', '0'],
-        output='screen'
-    )
-    
-
-    # Invece di OnProcessStart del bridge, aspettiamo che lo spawner dei controller finisca.
-    # Questo garantisce che il robot sia presente, i controller siano attivi e il mondo sia "stabile".
-    detach_handler = RegisterEventHandler(
-        OnProcessExit(
-            target_action=velocity_controller, # Quando il controller è pronto, il mondo lo è sicuramente
-            on_exit=[
-                TimerAction(
-                    period=10.0,
-                    actions=[detach_package]
-                )
-            ]
-        )
-    )
+  
 
 
-'''
-
-# --- 10. DETACH LOGIC AGGIORNATA ---
-
-# Comando diretto Ignition (più veloce di ros2 topic pub)
     detach_package = ExecuteProcess(
         cmd=['ign', 'topic', '-t', '/model/aruco_tag/detachable_joint/detach', '-m', 'ignition.msgs.Empty', '-p', ' '],
         output='screen'
@@ -224,7 +197,6 @@ def generate_launch_description():
     )
 
 
-    # --- 11. RETURN DESCRIPTION ---
     return LaunchDescription([
         set_gz_resource_path,
         set_ign_resource_path,
