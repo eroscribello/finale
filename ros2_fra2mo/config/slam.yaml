@@ -26,7 +26,7 @@ slam:
 
     throttle_scans: 1
     transform_publish_period: 0.02 # If 0 never publishes odometry
-    map_update_interval: 2.0
+    map_update_interval: 3.0
     resolution: 0.05
     max_laser_range: 10.0
     min_laser_range: 0.1
@@ -39,11 +39,11 @@ slam:
     # General Parameters
     use_scan_matching: true
     use_scan_barycenter: true
-    minimum_travel_distance: 0.01
-    minimum_travel_heading: 0.01
-    scan_buffer_size: 10
+    minimum_travel_distance: 0.1
+    minimum_travel_heading: 0.1
+    scan_buffer_size: 15
     scan_buffer_maximum_scan_distance: 7.0
-    link_match_minimum_response_fine: 0.1
+    link_match_minimum_response_fine: 0.15
     link_scan_maximum_distance: 1.0
     loop_search_maximum_distance: 3.0
     do_loop_closing: true

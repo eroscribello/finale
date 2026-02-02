@@ -35,7 +35,7 @@
         <linear>0.01</linear>
         <quadratic>0.001</quadratic>
       </attenuation>
-      <direction>-0.5 0.1 -0.9</direction>
+      <direction>0.3 0.1 -0.9</direction>
     </light>
 
 
@@ -43,25 +43,22 @@
     
     <model name="muro1">
       <static>true</static>
-      <pose>5 0 1 0 0 0</pose>
+      <pose>4 0 1 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.1 15 2</size>
+              <size>0.1 10 2</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
         <material> 
-          <ambient>0.1 0.1 0.1 1</ambient>
           <diffuse>0.1 0.1 0.1 1</diffuse>
-          <specular>0 0 0 0</specular>
-          <emissive>0 0 0 1</emissive>
         </material> 
           <geometry>
             <box>
-              <size>0.1 15 2</size>
+              <size>0.1 10 2</size>
             </box>
           </geometry>
         </visual>
@@ -70,25 +67,22 @@
     
     <model name="muro2">
       <static>true</static>
-      <pose>0 7.5 1 0 0 0</pose>
+      <pose>0 5 1 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>10 0.1 2</size>
+              <size>8 0.1 2</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
         <material> 
-          <ambient>0.1 0.1 0.1 1</ambient>
           <diffuse>0.1 0.1 0.1 1</diffuse>
-          <specular>0 0 0 0</specular>
-          <emissive>0 0 0 1</emissive>
         </material> 
           <geometry>
             <box>
-              <size>10 0.1 2</size>
+              <size>8 0.1 2</size>
             </box>
           </geometry>
         </visual>
@@ -98,25 +92,22 @@
     
     <model name="muro3">
       <static>true</static>
-      <pose>-5 0 1 0 0 0</pose>
+      <pose>-4 0 1 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.1 15 2</size>
+              <size>0.1 10 2</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
         <material> 
-          <ambient>0.1 0.1 0.1 1</ambient>
           <diffuse>0.1 0.1 0.1 1</diffuse>
-          <specular>0 0 0 0</specular>
-          <emissive>0 0 0 1</emissive>
         </material> 
           <geometry>
             <box>
-              <size>0.1 15 2</size>
+              <size>0.1 10 2</size>
             </box>
           </geometry>
         </visual>
@@ -126,25 +117,22 @@
     
     <model name="muro4">
       <static>true</static>
-      <pose>0 -7.5 1 0 0 0</pose>
+      <pose>0 -5 1 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>10 0.1 2</size>
+              <size>8 0.1 2</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
         <material> 
-          <ambient>0.1 0.1 0.1 1</ambient>
           <diffuse>0.1 0.1 0.1 1</diffuse>
-          <specular>0 0 0 0</specular>
-          <emissive>0 0 0 1</emissive>
         </material> 
           <geometry>
             <box>
-              <size>10 0.1 2</size>
+              <size>8 0.1 2</size>
             </box>
           </geometry>
         </visual>
@@ -154,25 +142,33 @@
     
     <model name="pavimento">
       <static>true</static>
-      <pose>0 0 -0.05 0 0 0</pose>
-      <link name="link">
+      <pose>0 0 -0.05 0 0 0</pose> <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>10 15 0.1</size>
+              <size>8 10 0.1</size>
             </box>
           </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>100</mu>     <mu2>50</mu2>    </ode>
+            </friction>
+            <contact>
+              <ode>
+                <kp>1000000.0</kp> <kd>1.0</kd>       </ode>
+            </contact>
+          </surface>
         </collision>
         <visual name="visual">
-         <material> 
-          <ambient>0.6 0.6 0.6 1</ambient>
-          <diffuse>0.6 0.6 0.6 1</diffuse>
-          <specular>0 0 0 0</specular>
-          <emissive>0 0 0 1</emissive>
-        </material> 
+          <material>
+            <ambient>0.3 0.3 0.3 1</ambient>
+            <diffuse>0.7 0.7 0.7 1</diffuse>
+            <specular>0.01 0.01 0.01 1</specular>
+          </material>
           <geometry>
             <box>
-              <size>10 15 0.1</size>
+              <size>8 10 0.1</size>
             </box>
           </geometry>
         </visual>
@@ -181,27 +177,105 @@
     
     
     
-    <model name="cont1">
+    
+    
+    
+    
+    
+    
+    <model name="ostacolo_1">
       <static>true</static>
-      <pose>0 -5 0.5 0 0 0</pose>
+      <pose>-3 1 0.5 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
             <box>
-              <size>2 0.1 1</size>
+              <size>2 0.4 1</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
         <material> 
-          <ambient>0.1 0.1 0.1 1</ambient>
-          <diffuse>0.1 0.1 0.1 1</diffuse>
-          <specular>0 0 0 0</specular>
-          <emissive>0 0 0 1</emissive>
+          <diffuse>0.4 0.5 0.3 1</diffuse>
         </material> 
           <geometry>
             <box>
-              <size>2 0.1 1</size>
+              <size>2 0.4 1</size>
+            </box>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+    
+   
+    <model name="ostacolo_2">
+      <static>true</static>
+      <pose>-1.8 2.3 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.4 3 1</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+        <material> 
+          <diffuse>0.4 0.5 0.3 1</diffuse>
+        </material> 
+          <geometry>
+            <box>
+              <size>0.4 3 1</size>
+            </box>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+    
+    
+    <model name="ostacolo_3">
+      <static>true</static>
+      <pose>0 4 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>4 0.4 1</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+        <material> 
+          <diffuse>0.4 0.5 0.3 1</diffuse>
+        </material> 
+          <geometry>
+            <box>
+              <size>4 0.4 1</size>
+            </box>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+    
+    
+    <model name="ostacolo_4">
+      <static>true</static>
+      <pose>1.8 3 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.4 2 1</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+        <material> 
+          <diffuse>0.4 0.5 0.3 1</diffuse>
+        </material> 
+          <geometry>
+            <box>
+              <size>0.4 2 1</size>
             </box>
           </geometry>
         </visual>
@@ -209,14 +283,91 @@
     </model>
 
 
+    <model name="ostacolo_5">
+      <static>true</static>
+      <pose>2.2 -1.8 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>3.6 0.4 1</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+        <material> 
+          <diffuse>0.4 0.5 0.3 1</diffuse>
+        </material> 
+          <geometry>
+            <box>
+              <size>3.6 0.4 1</size>
+            </box>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+    
+    
+    <model name="ostacolo_6">
+      <static>true</static>
+      <pose>0.2 0 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.4 4 1</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+        <material> 
+          <diffuse>0.4 0.5 0.3 1</diffuse>
+        </material> 
+          <geometry>
+            <box>
+              <size>0.4 4 1</size>
+            </box>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+    
+    
+    <model name="ostacolo_7">
+      <static>true</static>
+      <pose>-2 -1 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>4 0.4 1</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+        <material> 
+          <diffuse>0.4 0.5 0.3 1</diffuse>
+        </material> 
+          <geometry>
+            <box>
+              <size>4 0.4 1</size>
+            </box>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+    
+    
+    
+  
+  
 <include>
   <uri>model://aruco_tags</uri>
   <name>aruco_tag</name>
-  <pose>-0.32 -0.83 1 0 0 0</pose>
+  <pose>-2 0.0 2 0 0 0</pose>
 </include>
 
 
-	
 
 
     <!-- AR markers -->

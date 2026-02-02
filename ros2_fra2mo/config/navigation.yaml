@@ -149,8 +149,8 @@ controller_server:
     goal_checker_plugin: "goal_checker"
     goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.1
-      yaw_goal_tolerance: 0.2
+      xy_goal_tolerance: 0.05
+      yaw_goal_tolerance: 0.05
       stateful: True
 
     controller_plugins: ["FollowPath"]
@@ -177,7 +177,7 @@ controller_server:
       regulated_linear_scaling_min_speed: 0.2
       allow_reversing: false
       use_rotate_to_heading: true
-      rotate_to_heading_min_angle: 0.785
+      rotate_to_heading_min_angle: 0.3
       # it is only used when rotating to heading (use_rotate_to_heading)
       # for some reason rotate_to_heading_angular_vel is ignored and robot rotates with
       # max_angular_accel/10. angular velocity (that's why it is set to higher value)
@@ -206,7 +206,7 @@ local_costmap:
       rolling_window: True
       always_send_full_costmap: True
 
-      robot_radius: 0.11
+      robot_radius: 0.2
       #footprint: "[[0.17, 0.17], [0.17, -0.17], [-0.17, -0.17], [-0.17, 0.17]]"
       footprint_padding: 0.03
 
@@ -214,7 +214,7 @@ local_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         enabled: True
-        inflation_radius: 0.15
+        inflation_radius: 0.35
         cost_scaling_factor: 1.0
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
@@ -256,7 +256,7 @@ global_costmap:
       always_send_full_costmap: True
       track_unknown_space: True
 
-      robot_radius: 0.11
+      robot_radius: 0.2
       # footprint: "[[0.17, 0.17], [0.17, -0.17], [-0.17, -0.17], [-0.17, 0.17]]"
       footprint_padding: 0.03
 
@@ -264,7 +264,7 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         enabled: True
-        inflation_radius: 0.15
+        inflation_radius: 0.35
         cost_scaling_factor: 2.0
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"

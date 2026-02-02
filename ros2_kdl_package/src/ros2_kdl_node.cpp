@@ -319,6 +319,7 @@ private:
         
         
         Eigen::Vector3d end_p(base_P_obj[0], base_P_obj[1], base_P_obj[2]-0.1);
+        //Eigen::Vector3d end_p(base_P_obj[0], base_P_obj[1], 0.15);
         planner_ = (traj_type_ == "linear") ? KDLPlanner(traj_duration_, acc_duration_, start_p, end_p) : KDLPlanner(traj_duration_, start_p, 0.15, acc_duration_);
         
         

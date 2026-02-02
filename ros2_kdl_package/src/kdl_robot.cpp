@@ -99,7 +99,8 @@ void KDLRobot::createChain(KDL::Tree &robot_tree)
 {
     // Ora siamo sicuri che questi nomi esistono!
     std::string base_link = "iiwa_iiwa_base"; 
-    std::string tip_link  = "iiwa_tool0"; 
+    //std::string tip_link  = "iiwa_tool0";
+    std::string tip_link  = "iiwa_link_7"; 
 
     if(!robot_tree.getChain(base_link, tip_link, chain_))
     {

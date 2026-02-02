@@ -20,6 +20,8 @@ find_package(rclcpp_action REQUIRED)
 find_package(action_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(nav2_msgs REQUIRED)
+
 
 # ======== Generazione action ========
 rosidl_generate_interfaces(${PROJECT_NAME}
@@ -85,6 +87,7 @@ src/ros2_kdl_node_client.cpp)
 ament_target_dependencies(ros2_kdl_node_client
   rclcpp
   rclcpp_action
+  nav2_msgs
 )
 
 rosidl_target_interfaces(ros2_kdl_node_client

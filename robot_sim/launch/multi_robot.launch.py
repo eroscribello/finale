@@ -132,7 +132,7 @@ def generate_launch_description():
         arguments=[
             '-topic', '/iiwa/robot_description',
             '-name', 'iiwa',
-            '-x', '0', '-y', '0', '-z', '0'
+            '-x', '3', '-y', '0', '-z', '0'
         ],
         parameters=[{'use_sim_time': True}],
         output='screen'
@@ -144,7 +144,7 @@ def generate_launch_description():
         arguments=[
             '-topic', '/fra2mo/robot_description',
             '-name', 'fra2mo',
-            '-x', '1.5', '-y', '0', '-z', '0'
+            '-x', '-3', '-y', '0', '-z', '0'
         ],
         parameters=[{'use_sim_time': True}],
         output='screen'
@@ -179,10 +179,12 @@ def generate_launch_description():
     # --- 10. DETACH LOGIC ---
 
     # Definiamo il comando di pubblicazione
+    '''
     detach_package = ExecuteProcess(
         cmd=['ros2', 'topic', 'pub', '--once', '/model/aruco_tag/detachable_joint/detach', 'std_msgs/msg/Empty', '{}', '-w', '0'],
         output='screen'
     )
+    
 
     # Invece di OnProcessStart del bridge, aspettiamo che lo spawner dei controller finisca.
     # Questo garantisce che il robot sia presente, i controller siano attivi e il mondo sia "stabile".
@@ -191,12 +193,36 @@ def generate_launch_description():
             target_action=velocity_controller, # Quando il controller è pronto, il mondo lo è sicuramente
             on_exit=[
                 TimerAction(
+                    period=10.0,
+                    actions=[detach_package]
+                )
+            ]
+        )
+    )
+
+
+'''
+
+# --- 10. DETACH LOGIC AGGIORNATA ---
+
+# Comando diretto Ignition (più veloce di ros2 topic pub)
+    detach_package = ExecuteProcess(
+        cmd=['ign', 'topic', '-t', '/model/aruco_tag/detachable_joint/detach', '-m', 'ignition.msgs.Empty', '-p', ' '],
+        output='screen'
+    )
+
+    detach_handler = RegisterEventHandler(
+        OnProcessStart(
+            target_action=velocity_controller,
+            on_start=[
+                TimerAction(
                     period=2.0,
                     actions=[detach_package]
                 )
             ]
         )
     )
+
 
     # --- 11. RETURN DESCRIPTION ---
     return LaunchDescription([
