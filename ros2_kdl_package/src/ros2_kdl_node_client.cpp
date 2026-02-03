@@ -58,7 +58,7 @@ private:
   {
     if (result.code == rclcpp_action::ResultCode::SUCCEEDED) {
       RCLCPP_INFO(this->get_logger(), "NAVIGAZIONE COMPLETATA! Avvio il braccio...");
-      send_arm_goal(1); // Chiamata al braccio (il tuo codice originale)
+      send_arm_goal(1);
     } else {
       RCLCPP_ERROR(this->get_logger(), "Navigazione fallita o interrotta.");
     }
